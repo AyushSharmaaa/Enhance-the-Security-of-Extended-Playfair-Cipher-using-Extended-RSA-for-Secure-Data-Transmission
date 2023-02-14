@@ -1,6 +1,8 @@
 package cryptography_practical;
 
 import java.awt.Point;
+import java.math.BigInteger;
+import java.util.Random;
 import java.util.Scanner;
 public class PlayfairCipher extends RSA
 {
@@ -10,29 +12,95 @@ public class PlayfairCipher extends RSA
     //creates a matrix for Playfair cipher
     private String [][] table;
 
+    //creates a matrix for Playfair cipher decryption
+    private String [][] tabledec;
+
+    long start = 0;
     //constructor of the class
     private PlayfairCipher()
     {
         Scanner sc = new Scanner(System.in);
-        //prompts user for message to be encoded
-        System.out.print("Enter the plaintext to be encipher: ");
+
+       //-------------------------------------------------RSA-------------------------------------------------------//
+        Random random = new Random();
+        System.out.println("\n\nComputing public key (N,e) and private key (N,d):");
+        // Choose n large primes num if n = 4,
+        // p1 , p2 , q1 and q2 , let N  = p1p2q1q2, and phi(N) = (p1-1)(p2-1)(q1-1)(q2-1)
+        System.out.print("Computing p 1 ... ");
+        System.out.flush();
+        BigInteger p1 = new BigInteger(bits, 50, random);
+        System.out.println(p1);
+        System.out.print("Computing p 2... ");
+        System.out.flush();
+        BigInteger p2 = new BigInteger(bits, 50, random);
+        System.out.println(p2);
+        System.out.print("Computing q 1 ... ");
+        System.out.flush();
+        BigInteger q1 = new BigInteger(bits, 50, random);
+        System.out.println(q1);
+        System.out.print("Computing q 2 ... ");
+        System.out.flush();
+        BigInteger q2 = new BigInteger(bits, 50, random);
+        System.out.println(q2);
+        BigInteger N = p1.multiply(p2.multiply(q1.multiply(q2)));
+        System.out.println("N = p1*p2*q1*q2 is       " + N);
+        BigInteger p1phi = p1.subtract(BigInteger.ONE);
+        BigInteger p2phi = p2.subtract(BigInteger.ONE);
+        BigInteger q1phi = q1.subtract(BigInteger.ONE);
+        BigInteger q2phi = q2.subtract(BigInteger.ONE);
+        BigInteger phi_N = p1phi.multiply(p2phi.multiply(q1phi.multiply(q2phi)));
+        System.out.println("phi(N) = (p1-1)(p2-1)(q1-1)(q2-1) is   " + phi_N);
+        System.out.println();
+
+        // Choose numbers e and d such that e is prime and ed = 1 mod N.
+
+        BigInteger e = new BigInteger("" + 0x10001);
+        System.out.println("Using e = " + e);
+        System.out.print("Computing d ... ");
+        BigInteger d = e.modInverse(phi_N);
+        System.out.println(d);
+        System.out.println();
+//-------------------------------------------------------------------------------------------------------------------//
+        System.out.print("Enter the plaintext to be Encrypted: ");
         String input = parseString(sc);
+        System.out.print("Enter the key for playfair cipher to be Encrypted: ");
+        String key = removeDuplicatesInKey(sc);
+
+        start = System.currentTimeMillis();
+
+
+        //prompts user for message to be encoded
+//        System.out.print("Enter the plaintext to be encipher: ");
+//        String input = parseString(sc);
         while(input.equals("")) {
             input = parseString(sc);
         }
         //prompts user for the keyword to use for encoding & creates tables
-        System.out.print("Enter the key for playfair cipher: ");
-        String key = removeDuplicatesInKey(sc);
+//        System.out.print("Enter the key for playfair cipher: ");
+//        String key = removeDuplicatesInKey(sc);
         while(key.equals("")) {
             key = removeDuplicatesInKey(sc);
         }
         table = this.cipherTable(key);
+//--------------------------------RSA------------------------------------//
+        String s = key;
+        if (s.trim().length() == 0) {
+            System.out.println("length 0");
+        }
+        System.out.println();
+        BigInteger[] cyphertextKey = encode(s,N,e);
+
+
+        String plaintextKey = decode(cyphertextKey,N,d);
+        tabledec = this.cipherTable(plaintextKey);
+
+//------------------------------------------------------------------------//
         //encodes and then decodes the encoded message
         String output = cipher(input);
         String decodedOutput = decode(output);
         //output the results to user
         this.keyTable(table);
-        this.printResults(output,decodedOutput);
+        this.printResults(output,decodedOutput,cyphertextKey,plaintextKey);
     }
 
     private static String removeDuplicatesInKey(Scanner scanner)
@@ -61,7 +129,6 @@ public class PlayfairCipher extends RSA
     }
 
     //parses an input string to remove numbers, punctuation,
-
     private String parseString(Scanner sc)
     {
         String parse = sc.nextLine();
@@ -77,7 +144,7 @@ public class PlayfairCipher extends RSA
     {
         //creates a matrix of 16*16
         String[][] playfairTable = new String[16][16];
-        //1-256 all char
+        //0 to 255 = 256 all char
         String str="";
         for (int i=0; i<=255; i++) {
             char c = (char) i;
@@ -221,7 +288,7 @@ public class PlayfairCipher extends RSA
                 c1 = c2;
                 c2 = temp;
             }
-            decoded = decoded + table[r1][c1] + table[r2][c2];
+            decoded = decoded + tabledec[r1][c1] + tabledec[r2][c2];
         }
 
         //returns the decoded message
@@ -242,37 +309,63 @@ public class PlayfairCipher extends RSA
     //function prints the key-table in matrix form for playfair cipher
     private void keyTable(String[][] printTable)
     {
-        System.out.println("Playfair Cipher Key Matrix: ");
-        System.out.println();
+        System.out.println("Playfair Cipher 16X16 Key Matrix: ");
         //loop iterates for rows
         for(int i = 0; i < 16; i++)
         {
             //loop iterates for column
             for(int j = 0; j < 16; j++)
             {
-                //prints the key-table in matrix form
-                System.out.print(printTable[i][j]+" ");
+                char c = printTable[i][j].charAt(0);
+                int val = c;
+                if (val == 10){
+                    System.out.print(" "+" ");
+                }
+                else {
+                    //prints the key-table in matrix form
+                    System.out.print(printTable[i][j] + " ");
+                }
             }
-            System.out.println();
+           System.out.println();
         }
         System.out.println();
     }
 
     //method that prints all the results
-    private void printResults(String encipher, String dec)
+    private void printResults(String encipher, String dec , BigInteger[] cyphertextKey , String plaintextKey)
     {
         System.out.print("Encrypted Message: ");
         //prints the encrypted message
         System.out.println(encipher);
         System.out.println();
+
+        System.out.print("Encrypted Playfair Key (with Extended RSA): " );
+        //Print Encrypted key with RSA
+        for (int i = 0; i < cyphertextKey.length; i++) {
+            System.out.println(cyphertextKey[i]);
+        }
+        System.out.println();
+
+        System.out.print("Decrypted Playfair Key (with Extended RSA): ");
+        //Print Decryted key with RSA
+
+        System.out.println( plaintextKey);
+        System.out.println();
+
         System.out.print("Decrypted Message: ");
         //prints the decryted message
         System.out.println(dec);
+        System.out.println();
+
+       //Time cal
+        long end2 = System.currentTimeMillis();
+        System.out.println("Execution Time: "+ (end2-start)+" Millisecond");
     }
     //main() method to test Playfair method
 
     public static void main(String args[])
     {
         PlayfairCipher pf = new PlayfairCipher();
+
     }
 }
